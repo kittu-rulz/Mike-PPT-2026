@@ -7,6 +7,7 @@
   const tocPanel = document.getElementById("toc-panel");
   const tocBody = document.getElementById("toc-body");
   const tocScrim = document.getElementById("toc-scrim");
+  const backToTop = document.querySelector("[data-back-to-top]");
   const liveRegion = document.getElementById("live-region");
   const rawDeckData = Array.isArray(window.deckData) ? window.deckData : [];
   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -2091,6 +2092,29 @@
     window.addEventListener("resize", update);
   }
 
+  function bindBackToTop() {
+    if (!backToTop) {
+      return;
+    }
+
+    const updateVisibility = () => {
+      const visible = window.scrollY > Math.max(window.innerHeight * 0.85, 520);
+      backToTop.classList.toggle("is-visible", visible);
+      backToTop.setAttribute("aria-hidden", visible ? "false" : "true");
+    };
+
+    backToTop.addEventListener("click", () => {
+      window.scrollTo({
+        top: 0,
+        behavior: reducedMotionQuery.matches ? "auto" : "smooth"
+      });
+    });
+
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    window.addEventListener("resize", updateVisibility);
+  }
+
   function handleInitialHash() {
     const hash = window.location.hash.replace("#", "");
     if (!hash) {
@@ -2130,6 +2154,7 @@
   bindRevealObserver();
   bindSectionObserver();
   bindProgress();
+  bindBackToTop();
   handleInitialHash();
   initFinancialInteractives();
 })();
