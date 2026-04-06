@@ -89,21 +89,12 @@
     `;
   }
 
-  function renderSlideDrawer(title, images) {
-    const items = Array.isArray(images) ? images : [images];
+  function renderDetailDrawer(summary, body, className = "") {
     return `
-      <details class="detail-drawer" data-reveal>
-        <summary>View PPT slide${items.length > 1 ? "s" : ""}</summary>
+      <details class="detail-drawer ${className}" data-reveal>
+        <summary>${escapeHtml(summary)}</summary>
         <div class="detail-drawer__body">
-          ${items
-            .map(
-              (image) => `
-                <figure class="slide-proof">
-                  <img src="${escapeAttr(image)}" alt="${escapeAttr(title)}">
-                </figure>
-              `
-            )
-            .join("")}
+          ${body}
         </div>
       </details>
     `;
@@ -311,11 +302,11 @@
 
   function renderHeroChapter(chapter) {
     const { brandImage, heroVideo } = deck;
-    const { kicker, lines, name, role, date, posterImage } = chapter.data;
+    const { kicker, lines, name, role, date } = chapter.data;
     return `
       <section class="chapter chapter--hero chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         <div class="hero-media">
-          <video class="hero-video" autoplay muted loop playsinline poster="${escapeAttr(posterImage)}">
+          <video class="hero-video" autoplay muted loop playsinline preload="auto">
             <source src="${escapeAttr(heroVideo)}" type="video/mp4">
           </video>
           <div class="hero-overlay"></div>
@@ -370,7 +361,6 @@
           <div class="financial-surface" data-reveal>
             ${renderChartTabs(chapter.data)}
           </div>
-          ${renderSlideDrawer(chapter.title, slideSnapshot)}
         </div>
       </section>
     `;
@@ -382,7 +372,7 @@
       <section class="chapter chapter--revenueWins chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
         <div class="wrap chapter-body chapter-body--split">
-          <article class="data-surface" data-reveal>
+          <article class="data-surface data-surface--table" data-reveal>
             <div class="surface-head">
               <span class="surface-title">${escapeHtml(chapter.title)}</span>
               <span class="surface-note">${escapeHtml(note)}</span>
@@ -422,9 +412,13 @@
             </div>
           </article>
 
-          <article class="data-surface" data-reveal>
+          <article class="data-surface data-surface--wins" data-reveal>
             <div class="surface-head">
               <span class="surface-title">${escapeHtml(winsTitle)}</span>
+            </div>
+            <div class="wins-summary">
+              <span class="wins-summary__label">Total won</span>
+              <strong class="wins-summary__value">${escapeHtml(winsTotal)}</strong>
             </div>
             <div class="wins-list">
               ${wins
@@ -437,62 +431,118 @@
                   `
                 )
                 .join("")}
-              <div class="wins-row wins-row--total">
-                <span class="wins-row__client">Total</span>
-                <span class="wins-row__amount">${escapeHtml(winsTotal)}</span>
-              </div>
             </div>
           </article>
         </div>
-        <div class="wrap">${renderSlideDrawer(chapter.title, slideSnapshots)}</div>
       </section>
     `;
   }
 
+  function buildTrendHighlights(rows) {
+    const byClient = Object.fromEntries(rows.map((row) => [row.client, row]));
+    const formatAmount = (value) => formatCompact(value * 1000);
+    const atnt = byClient["AT&T"];
+    const pmi = byClient["PMI"];
+    const pge = byClient["Pacific Gas & Electric"];
+    const ey = byClient["Ernst & Young"];
+    const pwc = byClient["PricewaterhouseCoopers"];
+    const kpmg = byClient["KPMG LLP"];
+
+    return [
+      {
+        label: "FY’26 leader",
+        text: `AT&T moved from rank ${atnt.values[0].rank} in FY’21 to rank ${atnt.values[5].rank} in FY’26, reaching ${formatAmount(
+          atnt.values[5].amount
+        )}.`
+      },
+      {
+        label: "New concentration",
+        text: `PMI entered the mix in FY’24 and climbed to rank ${pmi.values[5].rank} in FY’26 at ${formatAmount(
+          pmi.values[5].amount
+        )}.`
+      },
+      {
+        label: "Emerging anchor",
+        text: `Pacific Gas & Electric rose from outside the early mix to rank ${pge.values[5].rank} in FY’26 at ${formatAmount(
+          pge.values[5].amount
+        )}.`
+      },
+      {
+        label: "Legacy shift",
+        text: `Ernst & Young, PricewaterhouseCoopers, and KPMG LLP led FY’21, but by FY’26 they stood at ranks ${ey.values[5].rank}, ${pwc.values[5].rank}, and ${kpmg.values[5].rank}.`
+      }
+    ];
+  }
+
   function renderTrendChapter(chapter) {
     const { note, years, rows, slideSnapshot } = chapter.data;
+    const highlights = buildTrendHighlights(rows);
     return `
       <section class="chapter chapter--trend chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
         <div class="wrap chapter-body">
           <div class="trend-shell" data-reveal>
-            <div class="surface-head">
-              <span class="surface-note">${escapeHtml(note)}</span>
-            </div>
-            <div class="matrix-scroll">
-              <table class="trend-table">
-                <thead>
-                  <tr>
-                    <th rowspan="2" class="trend-table__client-head">Client Name</th>
-                    ${years.map((year) => `<th colspan="2">${escapeHtml(year)}</th>`).join("")}
-                  </tr>
-                  <tr>
-                    ${years.map(() => "<th>Rank</th><th>Amounts ($)</th>").join("")}
-                  </tr>
-                </thead>
-                <tbody>
-                  ${rows
-                    .map(
-                      (row) => `
-                        <tr>
-                          <th>${escapeHtml(row.client)}</th>
-                          ${row.values
-                            .map(
-                              (value) => `
-                                <td>${escapeHtml(String(value.rank))}</td>
-                                <td>${escapeHtml(`$${value.amount.toLocaleString("en-US")}`)}</td>
-                              `
-                            )
-                            .join("")}
-                        </tr>
-                      `
-                    )
-                    .join("")}
-                </tbody>
-              </table>
+            <p class="trend-lede">
+              Over the past 6 years, our Top 10 client composition has changed significantly, reflecting a material shift in where enterprise revenue is concentrated.
+            </p>
+            <div class="trend-highlights">
+              ${highlights
+                .map(
+                  (item, index) => `
+                    <article class="trend-highlight">
+                      <span class="trend-highlight__index">${pad(index + 1)}</span>
+                      <div class="trend-highlight__body">
+                        <h3>${escapeHtml(item.label)}</h3>
+                        <p>${escapeHtml(item.text)}</p>
+                      </div>
+                    </article>
+                  `
+                )
+                .join("")}
             </div>
           </div>
-          ${renderSlideDrawer(chapter.title, slideSnapshot)}
+          ${renderDetailDrawer(
+            "View full client trend matrix",
+            `
+              <div class="surface-head">
+                <span class="surface-title">${escapeHtml(chapter.title)}</span>
+                <span class="surface-note">${escapeHtml(note)}</span>
+              </div>
+              <div class="matrix-scroll">
+                <table class="trend-table">
+                  <thead>
+                    <tr>
+                      <th rowspan="2" class="trend-table__client-head">Client Name</th>
+                      ${years.map((year) => `<th colspan="2">${escapeHtml(year)}</th>`).join("")}
+                    </tr>
+                    <tr>
+                      ${years.map(() => "<th>Rank</th><th>Amounts ($)</th>").join("")}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rows
+                      .map(
+                        (row) => `
+                          <tr>
+                            <th>${escapeHtml(row.client)}</th>
+                            ${row.values
+                              .map(
+                                (value) => `
+                                  <td>${escapeHtml(String(value.rank))}</td>
+                                  <td>${escapeHtml(`$${value.amount.toLocaleString("en-US")}`)}</td>
+                                `
+                              )
+                              .join("")}
+                          </tr>
+                        `
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            `,
+            "detail-drawer--matrix"
+          )}
         </div>
       </section>
     `;
@@ -502,53 +552,73 @@
     const featured = tab.entries[0];
     const topFive = tab.entries.slice(0, 5);
     const maxValue = topFive[0].amount;
+    const remainder = tab.entries.slice(5);
     return `
       <div class="ranking-panel">
         <div class="ranking-panel__head">
           <span class="surface-title">${escapeHtml(tab.subheading)}</span>
         </div>
-        <div class="ranking-feature">
-          <span class="ranking-feature__label">#01 ${escapeHtml(featured.client)}</span>
-          <strong class="ranking-feature__value">${escapeHtml(formatCurrency(featured.amount))}</strong>
+        <div class="ranking-panel__body">
+          <div class="ranking-feature">
+            <span class="ranking-feature__label">#01 ${escapeHtml(featured.client)}</span>
+            <strong class="ranking-feature__value">${escapeHtml(formatCurrency(featured.amount))}</strong>
+          </div>
+          <div class="ranking-bars">
+            ${topFive
+              .slice(1)
+              .map(
+                (entry, index) => `
+                  <div class="ranking-bar">
+                    <div class="ranking-bar__meta">
+                      <span class="ranking-bar__rank">${pad(index + 2)}</span>
+                      <span class="ranking-bar__client">${escapeHtml(entry.client)}</span>
+                      <span class="ranking-bar__value">${escapeHtml(formatCurrency(entry.amount))}</span>
+                    </div>
+                    <div class="ranking-bar__track">
+                      <span class="ranking-bar__fill" style="width:${(entry.amount / maxValue) * 100}%"></span>
+                    </div>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
         </div>
-        <div class="ranking-bars">
-          ${topFive
+        <div class="ranking-remainder">
+          ${remainder
             .map(
               (entry, index) => `
-                <div class="ranking-bar">
-                  <div class="ranking-bar__meta">
-                    <span class="ranking-bar__rank">${pad(index + 1)}</span>
-                    <span class="ranking-bar__client">${escapeHtml(entry.client)}</span>
-                    <span class="ranking-bar__value">${escapeHtml(formatCurrency(entry.amount))}</span>
-                  </div>
-                  <div class="ranking-bar__track">
-                    <span class="ranking-bar__fill" style="width:${(entry.amount / maxValue) * 100}%"></span>
-                  </div>
+                <div class="ranking-remainder__item">
+                  <span class="ranking-bar__rank">${pad(index + 6)}</span>
+                  <span class="ranking-remainder__client">${escapeHtml(entry.client)}</span>
+                  <span class="ranking-remainder__value">${escapeHtml(formatCurrency(entry.amount))}</span>
                 </div>
               `
             )
             .join("")}
         </div>
-        <div class="ranking-table-shell">
-          <table class="clean-table clean-table--ranking">
-            <thead>
-              <tr><th>Client Name</th><th>Amount ($)</th></tr>
-            </thead>
-            <tbody>
-              ${tab.entries
-                .map(
-                  (entry) => `
-                    <tr>
-                      <th>${escapeHtml(entry.client)}</th>
-                      <td>${escapeHtml(formatCurrency(entry.amount))}</td>
-                    </tr>
-                  `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </div>
-        ${renderSlideDrawer(tab.subheading, tab.slideSnapshot)}
+        ${renderDetailDrawer(
+          "View full top 10 list",
+          `
+            <table class="clean-table clean-table--ranking">
+              <thead>
+                <tr><th>Client Name</th><th>Amount ($)</th></tr>
+              </thead>
+              <tbody>
+                ${tab.entries
+                  .map(
+                    (entry) => `
+                      <tr>
+                        <th>${escapeHtml(entry.client)}</th>
+                        <td>${escapeHtml(formatCurrency(entry.amount))}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          `,
+          "detail-drawer--ranking"
+        )}
       </div>
     `;
   }
@@ -636,7 +706,6 @@
               )
               .join("")}
           </div>
-          ${renderSlideDrawer(chapter.title, slideSnapshot)}
         </div>
       </section>
     `;
