@@ -85,15 +85,15 @@
           ],
           winsTitle: "Wins and New Clients Addition – Financial Year 2025 - 26",
           wins: [
-            { client: "DigiDrub", amount: "$376,868" },
-            { client: "McCarthy", amount: "$167,000" },
-            { client: "CoBANK", amount: "$113,400" },
-            { client: "Walbridge", amount: "$66,000" },
-            { client: "KBS", amount: "$38,900" },
-            { client: "CE2NMD", amount: "$12,600" },
-            { client: "ASAP Elearning Solutions Ltd.", amount: "$6,000" },
-            { client: "Qatar Airways", amount: "$0" },
-            { client: "Merck", amount: "$0" }
+            { client: "Digidrub", amount: "$376,868", logo: "assets/logos/Digidrub.svg" },
+            { client: "McCarthy", amount: "$167,000", logo: "assets/logos/McCarthy.png" },
+            { client: "CoBANK", amount: "$113,400", logo: "assets/logos/CoBank.png" },
+            { client: "Walbridge", amount: "$66,000", logo: "assets/logos/Wallbridge.png" },
+            { client: "KBS", amount: "$38,900", logo: "assets/logos/KBS.svg" },
+            { client: "CE2NMD", amount: "$12,600", logo: "assets/logos/CE2NMD.svg" },
+            { client: "ASAP Elearning Solutions Ltd.", amount: "$6,000", logo: "assets/logos/ASAP.png" },
+            { client: "Qatar Airways", amount: "$0", logo: "assets/logos/Qatar.jpg" },
+            { client: "Merck", amount: "$0", logo: "assets/logos/Merck.svg" }
           ],
           winsTotal: "$780,768",
           slideSnapshots: [slideImage("Slide3.PNG"), slideImage("Slide5.PNG")]
@@ -191,7 +191,6 @@
         title: "FY’26 - Initiatives",
         accentPhrases: ["Initiatives"],
         data: {
-          heroImage: aprilMedia("image12.jpeg"),
           automation: [
             "Adoption of client platforms like Ask AT&T",
             "Automated storyboard-to-development workflows",
@@ -255,8 +254,7 @@
                 "Stronger client relationships improve upselling and cross-selling opportunities"
               ]
             }
-          ],
-          slideSnapshot: slideImage("Slide7.PNG")
+          ]
         }
       }
     ]

@@ -2,15 +2,22 @@
   const presentationRoot = document.getElementById("presentation");
   const progressBar = document.getElementById("progress-bar");
   const currentSectionLabel = document.getElementById("current-section-label");
-  const tocToggle = document.querySelector("[data-toc-toggle]");
-  const tocClose = document.querySelector("[data-toc-close]");
-  const tocPanel = document.getElementById("toc-panel");
-  const tocBody = document.getElementById("toc-body");
-  const tocScrim = document.getElementById("toc-scrim");
+  const chaptersToggle = document.querySelector("[data-toc-toggle]");
+  const chaptersClose = document.querySelector("[data-toc-close]");
+  const chaptersPanel = document.getElementById("toc-panel");
+  const chaptersList = document.getElementById("toc-body");
+  const chaptersScrim = document.getElementById("chapters-scrim");
+
   const backToTop = document.querySelector("[data-back-to-top]");
   const liveRegion = document.getElementById("live-region");
   const deck = window.deckData || {};
   const chapters = Array.isArray(deck.chapters) ? deck.chapters : [];
+
+  let currentActiveChapter = null;
+  let lastFocusedElement = null;
+  const chartInstances = new Map();
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let chartResizeFrame = null;
 
   const currency0 = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -49,6 +56,25 @@
     return escapeHtml(value);
   }
 
+  function getClientInitials(name) {
+    return String(name ?? "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }
+
+  function renderClientLogo(client, logoPath) {
+    if (logoPath) {
+      return `<img class="wins-row__logo-image" src="${escapeAttr(logoPath)}" alt="${escapeAttr(client)} logo">`;
+    }
+
+    return `<span class="wins-row__logo" aria-hidden="true">${escapeHtml(getClientInitials(client))}</span>`;
+  }
+
   function pad(value) {
     return String(value).padStart(2, "0");
   }
@@ -67,6 +93,12 @@
 
   function formatPercentWhole(value) {
     return percent0.format(value ?? 0);
+  }
+
+  function formatSignedPercent(value) {
+    const numeric = Number(value ?? 0);
+    const prefix = numeric > 0 ? "+" : numeric < 0 ? "-" : "";
+    return `${prefix}${percent1.format(Math.abs(numeric))}`;
   }
 
   function stylizeTitle(title, accentPhrases = []) {
@@ -100,157 +132,445 @@
     `;
   }
 
+  function encodeChartPayload(payload) {
+    return escapeAttr(encodeURIComponent(JSON.stringify(payload)));
+  }
+
+  function decodeChartPayload(encoded) {
+    try {
+      return JSON.parse(decodeURIComponent(encoded || ""));
+    } catch {
+      return null;
+    }
+  }
+
+  function readCssVariable(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
   function renderComboChart(series) {
-    const width = 860;
-    const height = 360;
-    const padding = { top: 28, right: 28, bottom: 78, left: 72 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    const maxValue = Math.max(...series.values);
-    const maxBar = Math.ceil(maxValue / 1000000 / 5) * 5 * 1000000;
-    const minGrowth = Math.min(...series.growth);
-    const maxGrowth = Math.max(...series.growth);
-    const growthRange = maxGrowth - minGrowth || 1;
-    const stepX = chartWidth / series.years.length;
-    const barWidth = Math.min(56, stepX * 0.5);
-    const ticks = new Array(5).fill(0).map((_, index) => (maxBar / 4) * index);
-
-    const linePoints = series.values
-      .map((_, index) => {
-        const x = padding.left + stepX * index + stepX / 2;
-        const y = padding.top + chartHeight - ((series.growth[index] - minGrowth) / growthRange) * chartHeight;
-        return `${x},${y}`;
-      })
-      .join(" ");
-
     return `
-      <figure class="chart-figure">
-        <svg viewBox="0 0 ${width} ${height}" class="combo-chart" role="img" aria-label="${escapeAttr(series.label)}">
-          ${ticks
-            .map((tick) => {
-              const y = padding.top + chartHeight - (tick / maxBar) * chartHeight;
-              return `
-                <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" class="chart-grid-line"></line>
-                <text x="${padding.left - 14}" y="${y + 5}" class="chart-axis-label" text-anchor="end">${escapeHtml(
-                  formatCompact(tick)
-                )}</text>
-              `;
-            })
-            .join("")}
-
-          ${series.values
-            .map((value, index) => {
-              const x = padding.left + stepX * index + stepX / 2 - barWidth / 2;
-              const barHeight = (value / maxBar) * chartHeight;
-              const y = padding.top + chartHeight - barHeight;
-              const pointX = padding.left + stepX * index + stepX / 2;
-              const pointY = padding.top + chartHeight - ((series.growth[index] - minGrowth) / growthRange) * chartHeight;
-              return `
-                <g class="chart-series-group">
-                  <title>${escapeHtml(series.years[index])} • ${escapeHtml(formatCurrency(value))} • ${escapeHtml(
-                    formatPercent(series.growth[index])
-                  )}</title>
-                  <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="18" class="chart-bar"></rect>
-                  <circle cx="${pointX}" cy="${pointY}" r="5.5" class="chart-point"></circle>
-                  <text x="${pointX}" y="${pointY - 14}" class="chart-point-label" text-anchor="middle">${escapeHtml(
-                    `${Math.round(series.growth[index] * 100)}%`
-                  )}</text>
-                  <text x="${pointX}" y="${height - 34}" class="chart-year-label" text-anchor="middle">${escapeHtml(
-                    series.years[index]
-                  )}</text>
-                  <text x="${pointX}" y="${y - 12}" class="chart-value-label" text-anchor="middle">${escapeHtml(
-                    formatCompact(value)
-                  )}</text>
-                </g>
-              `;
-            })
-            .join("")}
-
-          <polyline points="${linePoints}" class="chart-line"></polyline>
-        </svg>
+      <figure class="chart-figure chart-figure--interactive">
+        <div
+          class="echart-canvas"
+          data-chart-type="combo"
+          data-chart-payload="${encodeChartPayload(series)}"
+          role="img"
+          aria-label="${escapeAttr(`${series.label} and ${series.growthLabel} by year`)}"
+        ></div>
         <figcaption class="chart-caption">
           <span>${escapeHtml(series.label)}</span>
-          <span>${escapeHtml(series.growthLabel)}</span>
+          <span>Hover data points for yearly values and growth.</span>
         </figcaption>
       </figure>
     `;
   }
 
   function renderMixChart(config) {
-    const width = 860;
-    const height = 360;
-    const padding = { top: 28, right: 28, bottom: 78, left: 60 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    const maxValue = 0.8;
-    const groupWidth = chartWidth / config.years.length;
-    const barWidth = Math.min(26, groupWidth / 4);
-    const ticks = [0, 0.2, 0.4, 0.6, 0.8];
-    const colors = ["mix-bar--fixed", "mix-bar--xdt", "mix-bar--tm"];
-
     return `
-      <figure class="chart-figure">
-        <svg viewBox="0 0 ${width} ${height}" class="mix-chart" role="img" aria-label="${escapeAttr(config.label)}">
-          ${ticks
-            .map((tick) => {
-              const y = padding.top + chartHeight - (tick / maxValue) * chartHeight;
-              return `
-                <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" class="chart-grid-line"></line>
-                <text x="${padding.left - 10}" y="${y + 4}" class="chart-axis-label" text-anchor="end">${escapeHtml(
-                  formatPercentWhole(tick)
-                )}</text>
-              `;
-            })
-            .join("")}
-          ${config.years
-            .map((year, yearIndex) => {
-              const startX = padding.left + groupWidth * yearIndex + groupWidth / 2 - (barWidth * config.series.length + 12) / 2;
-              const bars = config.series
-                .map((series, seriesIndex) => {
-                  const value = series.values[yearIndex];
-                  const barHeight = (value / maxValue) * chartHeight;
-                  const x = startX + seriesIndex * (barWidth + 6);
-                  const y = padding.top + chartHeight - barHeight;
-                  return `
-                    <g>
-                      <title>${escapeHtml(year)} • ${escapeHtml(series.name)} • ${escapeHtml(formatPercentWhole(value))}</title>
-                      <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="14" class="mix-bar ${colors[seriesIndex]}"></rect>
-                    </g>
-                  `;
-                })
-                .join("");
-
-              return `
-                <g>
-                  ${bars}
-                  <text x="${padding.left + groupWidth * yearIndex + groupWidth / 2}" y="${height - 34}" class="chart-year-label" text-anchor="middle">${escapeHtml(
-                    year
-                  )}</text>
-                </g>
-              `;
-            })
-            .join("")}
-        </svg>
+      <figure class="chart-figure chart-figure--interactive">
+        <div
+          class="echart-canvas"
+          data-chart-type="mix"
+          data-chart-payload="${encodeChartPayload(config)}"
+          role="img"
+          aria-label="${escapeAttr(config.label)}"
+        ></div>
         <figcaption class="chart-caption">
           <span>${escapeHtml(config.label)}</span>
-          <span class="chart-legend">
-            ${config.series
-              .map(
-                (series, index) => `
-                  <span class="chart-legend__item">
-                    <span class="chart-legend__swatch ${colors[index]}"></span>
-                    ${escapeHtml(series.name)}
-                  </span>
-                `
-              )
-              .join("")}
-          </span>
+          <span>Toggle series in the legend and inspect contribution by year.</span>
         </figcaption>
       </figure>
     `;
   }
 
-  function renderChartTabs(financial) {
+  function buildTooltipMarkup(title, rows) {
+    return `
+      <div class="tooltip-card">
+        <div class="tooltip-card__title">${escapeHtml(title)}</div>
+        ${rows
+          .map(
+            (row) => `
+              <div class="tooltip-card__row">
+                <span>${escapeHtml(row.label)}</span>
+                <strong>${escapeHtml(row.value)}</strong>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    `;
+  }
+
+  function createComboChartOption(series) {
+    const blue = readCssVariable("--color-blue", "#67a9ff");
+    const gold = readCssVariable("--color-gold", "#bf8a54");
+    const inkStrong = readCssVariable("--color-text-primary-light", "#121a24");
+    const inkSoft = readCssVariable("--color-text-tertiary-light", "#778295");
+    const grid = readCssVariable("--color-border-dark-subtle", "rgba(18, 26, 36, 0.08)");
+    const animationEnabled = !prefersReducedMotion.matches;
+    const minGrowth = Math.min(...series.growth);
+    const maxGrowth = Math.max(...series.growth);
+    const growthPadding = Math.max((maxGrowth - minGrowth) * 0.18, 0.08);
+
+    return {
+      aria: {
+        enabled: true
+      },
+      animation: animationEnabled,
+      animationDuration: 720,
+      animationEasing: "cubicOut",
+      animationDurationUpdate: 420,
+      grid: {
+        top: 30,
+        right: 80,
+        bottom: 46,
+        left: 72
+      },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(8, 12, 18, 0.96)",
+        borderColor: "rgba(248, 245, 238, 0.12)",
+        borderWidth: 1,
+        padding: 0,
+        extraCssText: "border-radius: 18px; box-shadow: 0 22px 52px rgba(0,0,0,0.24);",
+        className: "echarts-premium-tooltip",
+        axisPointer: {
+          type: "shadow",
+          shadowStyle: {
+            color: "rgba(103, 169, 255, 0.08)"
+          }
+        },
+        formatter(params) {
+          const barPoint = params.find((item) => item.seriesType === "bar");
+          const linePoint = params.find((item) => item.seriesType === "line");
+          const year = barPoint?.axisValueLabel || linePoint?.axisValueLabel || "";
+
+          return buildTooltipMarkup(year, [
+            {
+              label: series.label,
+              value: formatCurrency(barPoint?.data ?? 0)
+            },
+            {
+              label: series.growthLabel,
+              value: formatSignedPercent(linePoint?.data ?? 0)
+            }
+          ]);
+        }
+      },
+      xAxis: {
+        type: "category",
+        data: series.years,
+        boundaryGap: true,
+        axisLine: {
+          lineStyle: {
+            color: grid
+          }
+        },
+        axisTick: {
+          show: false
+        },
+        axisLabel: {
+          color: inkSoft,
+          fontFamily: "Instrument Sans",
+          fontSize: 11,
+          margin: 16
+        }
+      },
+      yAxis: [
+        {
+          type: "value",
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: {
+            lineStyle: {
+              color: grid
+            }
+          },
+          axisLabel: {
+            color: inkSoft,
+            fontFamily: "Instrument Sans",
+            fontSize: 11,
+            formatter(value) {
+              return formatCompact(value);
+            }
+          }
+        },
+        {
+          type: "value",
+          min: minGrowth - growthPadding,
+          max: maxGrowth + growthPadding,
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: {
+            color: inkSoft,
+            fontFamily: "Instrument Sans",
+            fontSize: 11,
+            formatter(value) {
+              return `${Math.round(value * 100)}%`;
+            }
+          }
+        }
+      ],
+      series: [
+        {
+          name: series.label,
+          type: "bar",
+          barMaxWidth: 42,
+          itemStyle: {
+            color: blue,
+            borderRadius: [16, 16, 6, 6],
+            shadowColor: "rgba(103, 169, 255, 0.18)",
+            shadowBlur: 10,
+            shadowOffsetY: 6
+          },
+          emphasis: {
+            focus: "series",
+            itemStyle: {
+              color: gold,
+              shadowColor: "rgba(191, 138, 84, 0.32)",
+              shadowBlur: 24,
+              shadowOffsetY: 10
+            }
+          },
+          data: series.values
+        },
+        {
+          name: series.growthLabel,
+          type: "line",
+          yAxisIndex: 1,
+          smooth: 0.32,
+          symbol: "circle",
+          symbolSize: 10,
+          itemStyle: {
+            color: "#ffffff",
+            borderColor: gold,
+            borderWidth: 3
+          },
+          lineStyle: {
+            color: gold,
+            width: 3
+          },
+          emphasis: {
+            focus: "series",
+            scale: true,
+            itemStyle: {
+              color: inkStrong,
+              borderColor: gold,
+              borderWidth: 4,
+              shadowBlur: 18,
+              shadowColor: "rgba(191, 138, 84, 0.28)"
+            }
+          },
+          data: series.growth
+        }
+      ]
+    };
+  }
+
+  function createMixChartOption(config) {
+    const inkSoft = readCssVariable("--color-text-tertiary-light", "#778295");
+    const grid = readCssVariable("--color-border-dark-subtle", "rgba(18, 26, 36, 0.08)");
+    const fixedColor = "#1d782e";
+    const xdtColor = readCssVariable("--color-violet", "#8477ff");
+    const tmColor = readCssVariable("--color-blue", "#67a9ff");
+    const palette = [fixedColor, xdtColor, tmColor];
+    const animationEnabled = !prefersReducedMotion.matches;
+
+    return {
+      aria: {
+        enabled: true
+      },
+      color: palette,
+      animation: animationEnabled,
+      animationDuration: 700,
+      animationEasing: "cubicOut",
+      animationDurationUpdate: 420,
+      grid: {
+        top: 34,
+        right: 26,
+        bottom: 78,
+        left: 60
+      },
+      legend: {
+        bottom: 8,
+        left: 0,
+        icon: "circle",
+        itemWidth: 10,
+        itemHeight: 10,
+        textStyle: {
+          color: inkSoft,
+          fontFamily: "Instrument Sans",
+          fontSize: 12
+        }
+      },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: {
+          type: "shadow",
+          shadowStyle: {
+            color: "rgba(132, 119, 255, 0.08)"
+          }
+        },
+        backgroundColor: "rgba(8, 12, 18, 0.96)",
+        borderColor: "rgba(248, 245, 238, 0.12)",
+        borderWidth: 1,
+        padding: 0,
+        extraCssText: "border-radius: 18px; box-shadow: 0 22px 52px rgba(0,0,0,0.24);",
+        className: "echarts-premium-tooltip",
+        formatter(params) {
+          const year = params[0]?.axisValueLabel || "";
+          const rows = params.map((item) => ({
+            label: item.seriesName,
+            value: formatPercentWhole(item.data)
+          }));
+
+          return buildTooltipMarkup(year, rows);
+        }
+      },
+      xAxis: {
+        type: "category",
+        data: config.years,
+        axisLine: {
+          lineStyle: {
+            color: grid
+          }
+        },
+        axisTick: { show: false },
+        axisLabel: {
+          color: inkSoft,
+          fontFamily: "Instrument Sans",
+          fontSize: 11,
+          margin: 16
+        }
+      },
+      yAxis: {
+        type: "value",
+        max: 0.8,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: {
+          lineStyle: {
+            color: grid
+          }
+        },
+        axisLabel: {
+          color: inkSoft,
+          fontFamily: "Instrument Sans",
+          fontSize: 11,
+          formatter(value) {
+            return formatPercentWhole(value);
+          }
+        }
+      },
+      series: config.series.map((series, index) => ({
+        name: series.name,
+        type: "bar",
+        stack: "mix",
+        barMaxWidth: 34,
+        itemStyle: {
+          color: palette[index],
+          borderRadius: index === config.series.length - 1 ? [14, 14, 4, 4] : [0, 0, 0, 0]
+        },
+        emphasis: {
+          focus: "series",
+          itemStyle: {
+            shadowBlur: 18,
+            shadowColor: `${palette[index]}55`
+          }
+        },
+        data: series.values
+      }))
+    };
+  }
+
+  function renderChart(node) {
+    if (!(node instanceof HTMLElement) || !window.echarts) {
+      return;
+    }
+
+    const parentPanel = node.closest("[data-tab-panel]");
+    if (parentPanel?.hidden) {
+      return;
+    }
+
+    const payload = decodeChartPayload(node.dataset.chartPayload);
+    if (!payload) {
+      return;
+    }
+
+    let instance = chartInstances.get(node);
+    if (!instance) {
+      instance = window.echarts.init(node, null, { renderer: "canvas" });
+      chartInstances.set(node, instance);
+    }
+
+    const option = node.dataset.chartType === "mix"
+      ? createMixChartOption(payload)
+      : createComboChartOption(payload);
+
+    instance.setOption(option, true);
+    instance.resize();
+  }
+
+  function refreshCharts(scope = document) {
+    scope.querySelectorAll("[data-chart-type]").forEach((node) => {
+      renderChart(node);
+    });
+  }
+
+  function queueChartResize() {
+    if (chartResizeFrame) {
+      cancelAnimationFrame(chartResizeFrame);
+    }
+
+    chartResizeFrame = requestAnimationFrame(() => {
+      chartInstances.forEach((instance, element) => {
+        if (element.isConnected) {
+          instance.resize();
+        }
+      });
+    });
+  }
+
+  function renderFinancialDetailTable(financial) {
+    return `
+      <div class="financial-detail-grid">
+        <div class="table-shell table-shell--detail">
+          <table class="clean-table clean-table--financial-detail">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Revenue</th>
+                <th>Revenue Growth %</th>
+                <th>EBITDA</th>
+                <th>EBITDA Growth %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${financial.revenueSeries.years
+                .map(
+                  (year, index) => `
+                    <tr>
+                      <th>${escapeHtml(year)}</th>
+                      <td>${escapeHtml(formatCurrency(financial.revenueSeries.values[index]))}</td>
+                      <td>${escapeHtml(formatPercent(financial.revenueSeries.growth[index]))}</td>
+                      <td>${escapeHtml(formatCurrency(financial.ebitdaSeries.values[index]))}</td>
+                      <td>${escapeHtml(formatPercent(financial.ebitdaSeries.growth[index]))}</td>
+                    </tr>
+                  `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderChartTabs(financial, chapterId) {
     const tabs = [
       { key: "revenue", label: "Revenue", chart: renderComboChart(financial.revenueSeries) },
       { key: "ebitda", label: "EBITDA", chart: renderComboChart(financial.ebitdaSeries) },
@@ -267,7 +587,10 @@
                   class="tab-button${index === 0 ? " is-active" : ""}"
                   type="button"
                   role="tab"
+                  id="${escapeAttr(`${chapterId}-tab-${tab.key}`)}"
+                  aria-controls="${escapeAttr(`${chapterId}-panel-${tab.key}`)}"
                   aria-selected="${index === 0 ? "true" : "false"}"
+                  tabindex="${index === 0 ? "0" : "-1"}"
                   data-tab-target="${escapeAttr(tab.key)}"
                 >
                   ${escapeHtml(tab.label)}
@@ -280,7 +603,14 @@
           ${tabs
             .map(
               (tab, index) => `
-                <section class="tab-panel${index === 0 ? " is-active" : ""}" data-tab-panel="${escapeAttr(tab.key)}">
+                <section
+                  class="tab-panel${index === 0 ? " is-active" : ""}"
+                  id="${escapeAttr(`${chapterId}-panel-${tab.key}`)}"
+                  role="tabpanel"
+                  aria-labelledby="${escapeAttr(`${chapterId}-tab-${tab.key}`)}"
+                  ${index === 0 ? "" : "hidden"}
+                  data-tab-panel="${escapeAttr(tab.key)}"
+                >
                   ${tab.chart}
                 </section>
               `
@@ -312,30 +642,38 @@
           <div class="hero-overlay"></div>
         </div>
         <div class="wrap hero-layout">
-          <div class="hero-copy" data-reveal>
-            <span class="hero-kicker">${escapeHtml(kicker)}</span>
-            <div class="hero-brand">
-              <img src="${escapeAttr(brandImage)}" alt="Aptara">
+          <div class="hero-content">
+            <div class="hero-copy" data-reveal>
+              <div class="hero-context">
+                <img class="hero-logo" src="${escapeAttr(brandImage)}" alt="Aptara">
+                <span class="hero-kicker">${escapeHtml(kicker)}</span>
+              </div>
+              <h1 class="hero-title" data-reveal>
+                ${lines
+                  .map((line) => `<span class="hero-title__line">${stylizeTitle(line, chapter.accentPhrases)}</span>`)
+                  .join("")}
+              </h1>
+              <button class="hero-scroll" type="button" data-scroll-next>
+                <span>Scroll to begin</span>
+              </button>
             </div>
-            <h1 class="hero-title">
-              ${lines
-                .map((line) => `<span class="hero-title__line">${stylizeTitle(line, chapter.accentPhrases)}</span>`)
-                .join("")}
-            </h1>
-            <button class="hero-scroll" type="button" data-scroll-next>Scroll to begin</button>
+            <aside class="hero-meta" data-reveal>
+              <div class="hero-meta__container">
+                <div class="hero-meta__speaker">
+                  <p class="hero-meta__name">${escapeHtml(name)}</p>
+                  <p class="hero-meta__role">${escapeHtml(role)}</p>
+                </div>
+                <div class="hero-meta__date">${escapeHtml(date)}</div>
+              </div>
+            </aside>
           </div>
-          <aside class="hero-meta" data-reveal>
-            <p class="hero-meta__name">${escapeHtml(name)}</p>
-            <p class="hero-meta__role">${escapeHtml(role)}</p>
-            <p class="hero-meta__date">${escapeHtml(date)}</p>
-          </aside>
         </div>
       </section>
     `;
   }
 
   function renderFinancialChapter(chapter) {
-    const { revenueSeries, ebitdaSeries, revenueWon, avgDealSize, slideSnapshot } = chapter.data;
+    const { revenueSeries, ebitdaSeries, revenueWon, avgDealSize } = chapter.data;
     return `
       <section class="chapter chapter--financial chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
@@ -359,15 +697,16 @@
             </article>
           </div>
           <div class="financial-surface" data-reveal>
-            ${renderChartTabs(chapter.data)}
+            ${renderChartTabs(chapter.data, chapter.id)}
           </div>
+          ${renderDetailDrawer("View detailed financials", renderFinancialDetailTable(chapter.data), "detail-drawer--financial")}
         </div>
       </section>
     `;
   }
 
   function renderRevenueWinsChapter(chapter) {
-    const { note, columns, budgetRows, deltaRows, winsTitle, wins, winsTotal, slideSnapshots } = chapter.data;
+    const { note, columns, budgetRows, deltaRows, winsTitle, wins, winsTotal } = chapter.data;
     return `
       <section class="chapter chapter--revenueWins chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
@@ -425,7 +764,9 @@
                 .map(
                   (item) => `
                     <div class="wins-row">
-                      <span class="wins-row__client">${escapeHtml(item.client)}</span>
+                      <div class="wins-row__client-meta">
+                        <span class="wins-row__client">${escapeHtml(item.client)}</span>
+                      </div>
                       <span class="wins-row__amount">${escapeHtml(item.amount)}</span>
                     </div>
                   `
@@ -433,6 +774,13 @@
                 .join("")}
             </div>
           </article>
+        </div>
+        <div class="wins-logos-marquee__container wins-logos-marquee__fullwidth">
+          <div class="wins-logos-marquee" aria-hidden="true">
+            ${[...wins.filter(item => item.logo), ...wins.filter(item => item.logo)]
+              .map(item => `<img class="wins-row__logo-image" src="${escapeAttr(item.logo)}" alt="${escapeAttr(item.client)} logo">`)
+              .join("")}
+          </div>
         </div>
       </section>
     `;
@@ -475,7 +823,7 @@
   }
 
   function renderTrendChapter(chapter) {
-    const { note, years, rows, slideSnapshot } = chapter.data;
+    const { note, years, rows } = chapter.data;
     const highlights = buildTrendHighlights(rows);
     return `
       <section class="chapter chapter--trend chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
@@ -638,7 +986,10 @@
                       class="tab-button${index === 0 ? " is-active" : ""}"
                       type="button"
                       role="tab"
+                      id="${escapeAttr(`${chapter.id}-tab-${tab.key}`)}"
+                      aria-controls="${escapeAttr(`${chapter.id}-panel-${tab.key}`)}"
                       aria-selected="${index === 0 ? "true" : "false"}"
+                      tabindex="${index === 0 ? "0" : "-1"}"
                       data-tab-target="${escapeAttr(tab.key)}"
                     >
                       ${escapeHtml(tab.label)}
@@ -651,7 +1002,14 @@
               ${tabs
                 .map(
                   (tab, index) => `
-                    <section class="tab-panel${index === 0 ? " is-active" : ""}" data-tab-panel="${escapeAttr(tab.key)}">
+                    <section
+                      class="tab-panel${index === 0 ? " is-active" : ""}"
+                      id="${escapeAttr(`${chapter.id}-panel-${tab.key}`)}"
+                      role="tabpanel"
+                      aria-labelledby="${escapeAttr(`${chapter.id}-tab-${tab.key}`)}"
+                      ${index === 0 ? "" : "hidden"}
+                      data-tab-panel="${escapeAttr(tab.key)}"
+                    >
                       ${renderRankingPanel(tab)}
                     </section>
                   `
@@ -665,31 +1023,28 @@
   }
 
   function renderInitiativesChapter(chapter) {
-    const { heroImage, automation, capabilitiesBuilt } = chapter.data;
+    const { automation, capabilitiesBuilt } = chapter.data;
     return `
       <section class="chapter chapter--initiatives chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
-        <div class="wrap chapter-body initiatives-layout">
-          <div class="initiative-copy" data-reveal>
-            <article class="initiative-block">
-              <h3>Automation</h3>
+        <div class="wrap chapter-body">
+          <div class="initiatives-grid" data-reveal>
+            <article class="initiative-card">
+              <h3>Automation Initiatives</h3>
               ${renderBulletList(automation)}
             </article>
-            <article class="initiative-block">
-              <h3>AR/VR/XR &amp; AI Capabilities Built</h3>
+            <article class="initiative-card">
+              <h3>AR/VR/XR & AI Capabilities</h3>
               ${renderBulletList(capabilitiesBuilt)}
             </article>
           </div>
-          <figure class="initiative-visual" data-reveal>
-            <img src="${escapeAttr(heroImage)}" alt="${escapeAttr(chapter.title)}">
-          </figure>
         </div>
       </section>
     `;
   }
 
   function renderGrowthPlanChapter(chapter) {
-    const { columns, slideSnapshot } = chapter.data;
+    const { columns } = chapter.data;
     return `
       <section class="chapter chapter--growth-plan chapter--${escapeAttr(chapter.tone)}" id="${escapeAttr(chapter.id)}" data-label="${escapeAttr(chapter.title)}" data-tone="${escapeAttr(chapter.tone)}">
         ${renderChapterHeader(chapter)}
@@ -736,6 +1091,18 @@
     presentationRoot.innerHTML = chapters.map((chapter) => renderChapter(chapter)).join("");
   }
 
+  function setActiveChapterLink(id) {
+    chaptersList?.querySelectorAll("[data-target]").forEach((button) => {
+      const isActive = button.dataset.target === id;
+      button.classList.toggle("is-active", isActive);
+      if (isActive) {
+        button.setAttribute("aria-current", "true");
+      } else {
+        button.removeAttribute("aria-current");
+      }
+    });
+  }
+
   function setupTabs(root = document) {
     root.querySelectorAll("[data-tabs]").forEach((group) => {
       const buttons = [...group.querySelectorAll("[data-tab-target]")];
@@ -746,14 +1113,42 @@
           const active = button.dataset.tabTarget === target;
           button.classList.toggle("is-active", active);
           button.setAttribute("aria-selected", active ? "true" : "false");
+          button.tabIndex = active ? 0 : -1;
         });
         panels.forEach((panel) => {
-          panel.classList.toggle("is-active", panel.dataset.tabPanel === target);
+          const active = panel.dataset.tabPanel === target;
+          panel.classList.toggle("is-active", active);
+          panel.hidden = !active;
         });
+        requestAnimationFrame(() => refreshCharts(group));
       };
 
       buttons.forEach((button) => {
         button.addEventListener("click", () => activate(button.dataset.tabTarget));
+      });
+
+      group.addEventListener("keydown", (event) => {
+        const currentIndex = buttons.findIndex((button) => button === document.activeElement);
+        if (currentIndex === -1) {
+          return;
+        }
+
+        let nextIndex = currentIndex;
+        if (event.key === "ArrowRight") {
+          nextIndex = (currentIndex + 1) % buttons.length;
+        } else if (event.key === "ArrowLeft") {
+          nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+        } else if (event.key === "Home") {
+          nextIndex = 0;
+        } else if (event.key === "End") {
+          nextIndex = buttons.length - 1;
+        } else {
+          return;
+        }
+
+        event.preventDefault();
+        buttons[nextIndex].focus();
+        activate(buttons[nextIndex].dataset.tabTarget);
       });
     });
   }
@@ -766,20 +1161,51 @@
     backToTop.classList.toggle("is-visible", visible);
   }
 
-  function openToc() {
-    document.body.classList.add("is-toc-open");
-    tocPanel?.setAttribute("aria-hidden", "false");
-    tocToggle?.setAttribute("aria-expanded", "true");
-    tocScrim?.removeAttribute("hidden");
-    updateBackToTopVisibility();
+  function primeHeroVideo() {
+    const heroVideo = document.querySelector(".hero-video");
+    if (!(heroVideo instanceof HTMLVideoElement)) {
+      return;
+    }
+
+    const seekToHighlightFrame = () => {
+      if (heroVideo.duration && heroVideo.currentTime < 0.9) {
+        heroVideo.currentTime = Math.min(1.25, Math.max(heroVideo.duration - 0.25, 0));
+      }
+      heroVideo.play().catch(() => {});
+    };
+
+    if (heroVideo.readyState >= 1) {
+      seekToHighlightFrame();
+      return;
+    }
+
+    heroVideo.addEventListener("loadedmetadata", seekToHighlightFrame, { once: true });
   }
 
-  function closeToc() {
-    document.body.classList.remove("is-toc-open");
-    tocPanel?.setAttribute("aria-hidden", "true");
-    tocToggle?.setAttribute("aria-expanded", "false");
-    tocScrim?.setAttribute("hidden", "");
+  function openToc() {
+    lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    document.body.classList.add("is-toc-open");
+    chaptersPanel?.setAttribute("aria-hidden", "false");
+    chaptersToggle?.setAttribute("aria-expanded", "true");
+    chaptersScrim?.removeAttribute("hidden");
     updateBackToTopVisibility();
+    requestAnimationFrame(() => {
+      const activeLink = chaptersList?.querySelector(".toc-link.is-active");
+      const firstFocusable = activeLink || chaptersClose || chaptersList?.querySelector(".toc-link");
+      firstFocusable?.focus();
+    });
+  }
+
+  function closeToc(restoreFocus = true) {
+    document.body.classList.remove("is-toc-open");
+    chaptersPanel?.setAttribute("aria-hidden", "true");
+    chaptersToggle?.setAttribute("aria-expanded", "false");
+    chaptersScrim?.setAttribute("hidden", "");
+    updateBackToTopVisibility();
+    if (restoreFocus && lastFocusedElement) {
+      requestAnimationFrame(() => lastFocusedElement?.focus());
+    }
+    lastFocusedElement = null;
   }
 
   function scrollToId(id) {
@@ -790,24 +1216,30 @@
   }
 
   function initToc() {
-    tocBody.innerHTML = chapters
+    chaptersList.innerHTML = chapters
       .map(
         (chapter) => `
-          <button class="toc-link" type="button" data-target="${escapeAttr(chapter.id)}">
-            <span class="toc-link__index">${pad(chapter.number)}</span>
-            <span class="toc-link__title">${escapeHtml(chapter.title)}</span>
-          </button>
+          <li>
+            <button class="toc-link" type="button" data-target="${escapeAttr(chapter.id)}">
+              <span class="toc-link__index">${pad(chapter.number)}</span>
+              <span class="toc-link__title">${escapeHtml(chapter.title)}</span>
+            </button>
+          </li>
         `
       )
       .join("");
 
-    tocBody.querySelectorAll("[data-target]").forEach((button) => {
+    chaptersList.querySelectorAll("[data-target]").forEach((button) => {
       button.addEventListener("click", () => {
-        closeToc();
+        closeToc(false);
         scrollToId(button.dataset.target);
       });
     });
+
+
   }
+
+
 
   function initObservers() {
     const sections = [...document.querySelectorAll(".chapter")];
@@ -832,10 +1264,12 @@
         }
 
         const section = activeEntry.target;
+        currentActiveChapter = section.id;
         document.body.setAttribute("data-tone", section.dataset.tone || "dark");
         document.body.setAttribute("data-active", section.id);
         currentSectionLabel.textContent = section.dataset.label || "Presentation";
         liveRegion.textContent = currentSectionLabel.textContent;
+        setActiveChapterLink(section.id);
       },
       {
         rootMargin: "-18% 0px -50% 0px",
@@ -863,12 +1297,15 @@
     window.addEventListener("scroll", () => {
       updateProgress();
       updateBackToTopVisibility();
+    }, { passive: true });
+    window.addEventListener("resize", () => {
+      updateProgress();
+      queueChartResize();
     });
-    window.addEventListener("resize", updateProgress);
   }
 
   function initChrome() {
-    tocToggle?.addEventListener("click", () => {
+    chaptersToggle?.addEventListener("click", () => {
       if (document.body.classList.contains("is-toc-open")) {
         closeToc();
       } else {
@@ -876,8 +1313,8 @@
       }
     });
 
-    tocClose?.addEventListener("click", closeToc);
-    tocScrim?.addEventListener("click", closeToc);
+    chaptersClose?.addEventListener("click", closeToc);
+    chaptersScrim?.addEventListener("click", closeToc);
 
     backToTop?.addEventListener("click", () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -894,7 +1331,43 @@
     });
 
     window.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && document.body.classList.contains("is-toc-open")) {
+        event.preventDefault();
+        closeToc();
+      }
+
+      if (event.key !== "Tab" || !document.body.classList.contains("is-toc-open")) {
+        return;
+      }
+
+      const focusableElements = chaptersPanel?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (!focusableElements?.length) {
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (
+        document.body.classList.contains("is-toc-open") &&
+        target instanceof HTMLElement &&
+        !chaptersPanel?.contains(target) &&
+        !chaptersToggle?.contains(target)
+      ) {
         closeToc();
       }
     });
@@ -904,9 +1377,14 @@
     renderNarrative();
     initToc();
     setupTabs(presentationRoot);
+    refreshCharts(presentationRoot);
+    primeHeroVideo();
     initChrome();
     initObservers();
     updateBackToTopVisibility();
+    if (chapters.length) {
+      setActiveChapterLink(chapters[0].id);
+    }
   }
 
   init();
