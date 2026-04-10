@@ -1373,6 +1373,61 @@
     });
   }
 
+  function initCursor() {
+    // Only on pointer-fine devices (no touch/mobile)
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+
+    const dot = document.getElementById("cursor-dot");
+    const ring = document.getElementById("cursor-ring");
+    if (!dot || !ring) return;
+
+    // Ring lags behind via lerp in rAF
+    let mouseX = 0, mouseY = 0;
+    let ringX = 0, ringY = 0;
+    const LERP = 0.14;
+
+    document.addEventListener("mousemove", (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      dot.style.transform = `translate(calc(${mouseX}px - 50%), calc(${mouseY}px - 50%))`;
+      dot.classList.remove("is-hidden");
+      ring.classList.remove("is-hidden");
+    });
+
+    document.addEventListener("mouseleave", () => {
+      dot.classList.add("is-hidden");
+      ring.classList.add("is-hidden");
+    });
+
+    document.addEventListener("mousedown", () => dot.classList.add("is-clicking"));
+    document.addEventListener("mouseup",   () => dot.classList.remove("is-clicking"));
+
+    // Hover detection on interactive elements
+    const HOVER_SELECTORS = "a, button, [role='button'], label, summary, [data-toc-toggle], input, select, textarea, .plan-card, .kpi-item, .detail-drawer";
+
+    document.addEventListener("mouseover", (e) => {
+      if (e.target instanceof Element && e.target.closest(HOVER_SELECTORS)) {
+        dot.classList.add("is-hovering");
+        ring.classList.add("is-hovering");
+      }
+    });
+
+    document.addEventListener("mouseout", (e) => {
+      if (e.target instanceof Element && e.target.closest(HOVER_SELECTORS)) {
+        dot.classList.remove("is-hovering");
+        ring.classList.remove("is-hovering");
+      }
+    });
+
+    // Animate ring with lerp
+    (function animateRing() {
+      ringX += (mouseX - ringX) * LERP;
+      ringY += (mouseY - ringY) * LERP;
+      ring.style.transform = `translate(calc(${ringX}px - 50%), calc(${ringY}px - 50%))`;
+      requestAnimationFrame(animateRing);
+    })();
+  }
+
   function init() {
     renderNarrative();
     initToc();
@@ -1381,6 +1436,7 @@
     primeHeroVideo();
     initChrome();
     initObservers();
+    initCursor();
     updateBackToTopVisibility();
     if (chapters.length) {
       setActiveChapterLink(chapters[0].id);

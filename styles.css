@@ -3020,3 +3020,72 @@ dialog.modal::backdrop {
 .animate-pulse {
   animation: pulse 2s var(--ease-default) infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   CUSTOM CURSOR
+   ═══════════════════════════════════════════════════════════ */
+
+/* Hide default cursor on non-touch devices */
+@media (pointer: fine) {
+  *,
+  *::before,
+  *::after {
+    cursor: none !important;
+  }
+
+  .cursor-dot,
+  .cursor-ring {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 99999;
+    will-change: transform;
+    border-radius: 50%;
+  }
+
+  .cursor-dot {
+    width: 6px;
+    height: 6px;
+    background: #fff;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.2s, transform 0.1s, background 0.2s;
+  }
+
+  .cursor-ring {
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    background: transparent;
+    transform: translate(-50%, -50%);
+    transition: width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+                height 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+                border-color 0.28s,
+                opacity 0.3s,
+                transform 0.05s linear;
+  }
+
+  /* Hover state — ring expands and shifts to gold */
+  .cursor-dot.is-hovering {
+    background: var(--color-gold);
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+
+  .cursor-ring.is-hovering {
+    width: 52px;
+    height: 52px;
+    border-color: var(--color-gold);
+    opacity: 0.75;
+  }
+
+  /* Click state — dot shrinks */
+  .cursor-dot.is-clicking {
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+
+  /* Out-of-window state */
+  .cursor-dot.is-hidden,
+  .cursor-ring.is-hidden {
+    opacity: 0;
+  }
+}
