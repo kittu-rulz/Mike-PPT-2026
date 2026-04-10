@@ -28,7 +28,7 @@
         number: 2,
         tone: "light",
         template: "financial",
-        title: "ENT Financial Overview: (FY’22 – FY’27)",
+        title: "ENT Financial Overview (FY’22 – FY’27)",
         accentPhrases: ["(FY’22 – FY’27)"],
         data: {
           revenueWon: 14941656,
@@ -85,7 +85,7 @@
           ],
           winsTitle: "Wins and New Clients Addition – Financial Year 2025 - 26",
           wins: [
-            { client: "Digidrub", amount: "$376,868", logo: "assets/logos/Digidrub.svg" },
+            { client: "DigiDrub", amount: "$376,868", logo: "assets/logos/Digidrub.svg" },
             { client: "McCarthy", amount: "$167,000", logo: "assets/logos/McCarthy.png" },
             { client: "CoBANK", amount: "$113,400", logo: "assets/logos/CoBank.png" },
             { client: "Walbridge", amount: "$66,000", logo: "assets/logos/Wallbridge.png" },
