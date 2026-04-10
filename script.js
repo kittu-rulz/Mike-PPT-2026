@@ -448,7 +448,7 @@
       },
       yAxis: {
         type: "value",
-        max: 0.8,
+        max: 1.0,
         axisLine: { show: false },
         axisTick: { show: false },
         splitLine: {
