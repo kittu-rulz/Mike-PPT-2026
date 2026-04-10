@@ -3048,14 +3048,16 @@ dialog.modal::backdrop {
     width: 6px;
     height: 6px;
     background: #fff;
+    mix-blend-mode: difference;
     transform: translate(-50%, -50%);
-    transition: opacity 0.2s, transform 0.1s, background 0.2s;
+    transition: opacity 0.2s, transform 0.1s;
   }
 
   .cursor-ring {
     width: 36px;
     height: 36px;
-    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    mix-blend-mode: difference;
     background: transparent;
     transform: translate(-50%, -50%);
     transition: width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
@@ -3065,17 +3067,16 @@ dialog.modal::backdrop {
                 transform 0.05s linear;
   }
 
-  /* Hover state — ring expands and shifts to gold */
+  /* Hover state — ring expands */
   .cursor-dot.is-hovering {
-    background: var(--color-gold);
-    transform: translate(-50%, -50%) scale(1.5);
+    transform: translate(-50%, -50%) scale(1.8);
   }
 
   .cursor-ring.is-hovering {
     width: 52px;
     height: 52px;
-    border-color: var(--color-gold);
-    opacity: 0.75;
+    border-width: 2px;
+    opacity: 0.9;
   }
 
   /* Click state — dot shrinks */
