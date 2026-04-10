@@ -3047,10 +3047,9 @@ dialog.modal::backdrop {
   .cursor-dot {
     width: 10px;
     height: 10px;
-    background: #fff;
-    mix-blend-mode: difference;
-    box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.9),
-                0 0 22px 8px rgba(255, 255, 255, 0.4);
+    background: var(--color-blue);
+    box-shadow: 0 0 10px 4px rgba(103, 169, 255, 0.9),
+                0 0 22px 8px rgba(103, 169, 255, 0.4);
     transform: translate(-50%, -50%);
     transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   }
@@ -3075,8 +3074,8 @@ dialog.modal::backdrop {
   /* Hover state — both grow with stronger glow */
   .cursor-dot.is-hovering {
     transform: translate(-50%, -50%) scale(2);
-    box-shadow: 0 0 14px 6px rgba(255, 255, 255, 1),
-                0 0 30px 12px rgba(255, 255, 255, 0.55);
+    box-shadow: 0 0 14px 6px rgba(103, 169, 255, 1),
+                0 0 30px 12px rgba(103, 169, 255, 0.55);
   }
 
   .cursor-ring.is-hovering {
@@ -3091,7 +3090,7 @@ dialog.modal::backdrop {
   /* Click state — dot pulses inward */
   .cursor-dot.is-clicking {
     transform: translate(-50%, -50%) scale(0.5);
-    box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 6px 2px rgba(103, 169, 255, 0.6);
   }
 
   /* Out-of-window state */
