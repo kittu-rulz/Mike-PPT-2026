@@ -1965,6 +1965,13 @@ body[data-tone="light"] .back-to-top {
   color: var(--color-gold);
 }
 
+.plan-card h3 .title-accent {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
 .detail-drawer {
   border: 1px solid var(--line-dark);
   border-radius: 1.3rem;
