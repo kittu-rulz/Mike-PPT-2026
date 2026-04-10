@@ -2491,6 +2491,104 @@ dialog.modal::backdrop {
   animation: slideUp var(--duration-slow) var(--ease-default);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   SITE FOOTER
+   ═══════════════════════════════════════════════════════════ */
+
+.site-footer {
+  background: var(--color-bg-dark);
+  border-top: 1px solid var(--color-border-light-subtle);
+  padding: 1.75rem 2rem;
+}
+
+.site-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.site-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+
+.site-footer__brand:hover {
+  opacity: 1;
+}
+
+.site-footer__logo {
+  height: 1.5rem;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+.site-footer__copy {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--color-text-tertiary-dark);
+  margin: 0;
+  text-align: center;
+  flex: 1;
+}
+
+.site-footer__social {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.site-footer__social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-text-tertiary-dark);
+  border: 1px solid var(--color-border-light-subtle);
+  border-radius: 50%;
+  transition: color var(--duration-fast) var(--ease-default),
+              border-color var(--duration-fast) var(--ease-default),
+              background var(--duration-fast) var(--ease-default),
+              transform var(--duration-fast) var(--ease-default);
+}
+
+.site-footer__social-link svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
+}
+
+.site-footer__social-link:hover {
+  color: var(--color-text-primary-dark);
+  border-color: var(--color-border-light-strong);
+  background: var(--color-surface-low, rgba(255,255,255,0.06));
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .site-footer__inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .site-footer__copy {
+    order: 2;
+  }
+
+  .site-footer__social {
+    order: 3;
+  }
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
