@@ -3045,43 +3045,53 @@ dialog.modal::backdrop {
   }
 
   .cursor-dot {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
     background: #fff;
     mix-blend-mode: difference;
+    box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.9),
+                0 0 22px 8px rgba(255, 255, 255, 0.4);
     transform: translate(-50%, -50%);
-    transition: opacity 0.2s, transform 0.1s;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   }
 
   .cursor-ring {
-    width: 36px;
-    height: 36px;
-    border: 1.5px solid rgba(255, 255, 255, 0.7);
+    width: 52px;
+    height: 52px;
+    border: 1.5px solid rgba(255, 255, 255, 0.8);
     mix-blend-mode: difference;
     background: transparent;
+    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.35),
+                inset 0 0 8px 1px rgba(255, 255, 255, 0.1);
     transform: translate(-50%, -50%);
-    transition: width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
-                height 0.28s cubic-bezier(0.25, 1, 0.5, 1),
-                border-color 0.28s,
+    transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+                height 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+                box-shadow 0.3s,
+                border-color 0.3s,
                 opacity 0.3s,
                 transform 0.05s linear;
   }
 
-  /* Hover state — ring expands */
+  /* Hover state — both grow with stronger glow */
   .cursor-dot.is-hovering {
-    transform: translate(-50%, -50%) scale(1.8);
+    transform: translate(-50%, -50%) scale(2);
+    box-shadow: 0 0 14px 6px rgba(255, 255, 255, 1),
+                0 0 30px 12px rgba(255, 255, 255, 0.55);
   }
 
   .cursor-ring.is-hovering {
-    width: 52px;
-    height: 52px;
+    width: 72px;
+    height: 72px;
     border-width: 2px;
-    opacity: 0.9;
+    box-shadow: 0 0 20px 4px rgba(255, 255, 255, 0.5),
+                inset 0 0 12px 2px rgba(255, 255, 255, 0.15);
+    opacity: 0.95;
   }
 
-  /* Click state — dot shrinks */
+  /* Click state — dot pulses inward */
   .cursor-dot.is-clicking {
     transform: translate(-50%, -50%) scale(0.5);
+    box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.6);
   }
 
   /* Out-of-window state */
